@@ -95,21 +95,13 @@ docmind/
 ├── query.py        # Similarity search + LLM answer generation
 
 
-
-
 ├── main.py         # FastAPI server + endpoints
-
-
 
 
 ├── static/
 
 
-
-
 │   └── index.html  # Chat UI
-
-
 
 
 └── requirements.txt
