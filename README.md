@@ -82,19 +82,13 @@ curl -X POST http://localhost:8000/query \
 
 ## Project Structure
 
-docmind/
-
-├── ingest.py       # PDF extraction, chunking, embedding, vector storage
-
-├── query.py        # Similarity search + LLM answer generation
-
-├── main.py         # FastAPI server + endpoints
-
-├── static/
-
-│   └── index.html  # Chat UI
-
-└── requirements.txt
+    docmind/
+    ├── ingest.py       # PDF extraction, chunking, embedding, vector storage
+    ├── query.py        # Similarity search + LLM answer generation
+    ├── main.py         # FastAPI server + endpoints
+    ├── static/
+    │   └── index.html  # Chat UI
+    └── requirements.txt
 
 ## How It Works
 
