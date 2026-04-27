@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from ingest import ingest_pdf
 from query import ask_document
 
+os.makedirs("data", exist_ok=True)
+os.makedirs("chroma_store", exist_ok=True)
 
 app = FastAPI(
     title="DocMind", description="RAG-powered document Q&A engine", version="1.0.0"
