@@ -9,57 +9,93 @@ pinned: false
 
 # DocMind — RAG-powered Document Q&A Engine
 
-Ask natural language questions about any PDF.
-Built with FastAPI, ChromaDB, LangChain, and Groq (Llama 3.1).
+Ask natural language questions about any PDF using semantic search and a local LLM — no data sent to external APIs.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-teal)
 ![ChromaDB](https://img.shields.io/badge/ChromaDB-vector_store-purple)
-![Ollama](https://img.shields.io/badge/Ollama-local_LLM-orange)
+![Groq](https://img.shields.io/badge/Groq-Llama_3.1-orange)
+
+🚀 **Live Demo:** [huggingface.co/spaces/ranajoy19/docmind](https://huggingface.co/spaces/ranajoy19/docmind)
+
+---
 
 ## Architecture
 
+    PDF → PyMuPDF → Chunker → Embedder (all-MiniLM-L6-v2) → ChromaDB
+                                                                   ↓
+    Question → Embedder → Similarity Search → Groq (Llama 3.1) → Answer + Sources
+
+---
 
 ## Tech Stack
 
-| Component       | Technology                     |
-|-----------------|-------------------------------|
-| Backend API     | FastAPI                        |
-| Vector Database | ChromaDB                       |
-| Embeddings      | sentence-transformers          |
-| LLM             | Ollama (Llama 3.2, local)      |
-| PDF Parsing     | PyMuPDF                        |
-| Chunking        | LangChain RecursiveTextSplitter|
+| Component       | Technology                          |
+|-----------------|-------------------------------------|
+| Backend API     | FastAPI                             |
+| Vector Database | ChromaDB                            |
+| Embeddings      | sentence-transformers (all-MiniLM-L6-v2) |
+| LLM             | Groq — Llama 3.1 8B Instant         |
+| PDF Parsing     | PyMuPDF                             |
+| Chunking        | LangChain RecursiveCharacterTextSplitter |
+| Frontend        | Vanilla HTML/CSS/JS (served by FastAPI) |
+| Deployment      | Hugging Face Spaces (Docker)        |
+
+---
 
 ## Features
 
-- Upload any PDF via drag-and-drop UI
-- Semantic search across document chunks
-- LLM answers grounded strictly in document context
-- Source tracing — every answer shows which chunk it came from
-- Fully local — no data sent to external APIs
-- Clean chat UI served from FastAPI
+- Upload any PDF through a clean chat UI
+- Semantic search across document chunks — finds meaning, not just keywords
+- LLM answers grounded strictly in document context — no hallucination
+- Source tracing — every answer shows exactly which chunk it came from
+- Cosine similarity distance scores returned with every result
+- REST API with Swagger docs at `/docs`
 
-## Quick Start
+---
+
+## How It Works
+
+**Phase 1 — Ingestion (once per document)**
+
+1. PyMuPDF extracts raw text from the uploaded PDF
+2. LangChain splits text into 500-token overlapping chunks (50-token overlap)
+3. sentence-transformers embeds each chunk into a 384-dimension vector
+4. ChromaDB stores vectors + text + metadata (source filename, chunk index) on disk
+
+**Phase 2 — Query (every question)**
+
+1. The question is embedded using the same sentence-transformer model
+2. ChromaDB finds the top 3 most semantically similar chunks via cosine similarity
+3. Chunks are passed to Groq (Llama 3.1) as grounded context
+4. LLM returns a natural language answer strictly based on the retrieved chunks
+5. Answer + source references are returned to the UI
+
+---
+
+## Quick Start (local)
 
 ### Prerequisites
-- Python 3.10+
-- [Ollama](https://ollama.com) installed and running
+
+- Python 3.11+
+- A [Groq API key](https://console.groq.com) (free, no credit card)
 
 ### Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/docmind.git
+git clone https://github.com/ranajoy19/docmind.git
 cd docmind
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Pull the LLM
+### Configure
 
-```bash
-ollama pull llama3.2
+Create a `.env` file in the project root:
+
+```
+GROQ_API_KEY=your-groq-key-here
 ```
 
 ### Run
@@ -70,24 +106,44 @@ uvicorn main:app --reload
 
 Open `http://localhost:8000` in your browser.
 
-### API Endpoints
+---
 
-POST /ingest   Upload a PDF → returns chunk count
-POST /query    Ask a question → returns answer + sources
-GET  /docs     Swagger UI
+## API Endpoints
+
+| Method | Endpoint  | Description                          |
+|--------|-----------|--------------------------------------|
+| GET    | `/`       | Chat UI                              |
+| POST   | `/ingest` | Upload a PDF → returns chunk count   |
+| POST   | `/query`  | Ask a question → answer + sources    |
+| GET    | `/docs`   | Swagger UI                           |
 
 ### Example
 
 ```bash
-# ingest
+# ingest a PDF
 curl -X POST http://localhost:8000/ingest \
   -F "file=@./contract.pdf"
 
-# query
+# response
+{ "status": "success", "file": "contract.pdf", "chunks_stored": 47 }
+
+# ask a question
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{"question": "What are the payment terms?"}'
+
+# response
+{
+  "question": "What are the payment terms?",
+  "answer": "According to the document, payment terms are net 30 days from invoice date...",
+  "sources": [
+    { "source": "contract.pdf", "chunk_index": 14, "distance": 0.2341 },
+    { "source": "contract.pdf", "chunk_index": 15, "distance": 0.3812 }
+  ]
+}
 ```
+
+---
 
 ## Project Structure
 
@@ -99,77 +155,28 @@ docmind/
 │   └── index.html  # Chat UI
 └── requirements.txt
 
-## How It Works
-
-1. **Ingestion** — PDF is parsed, split into 500-token overlapping chunks,
-   embedded using sentence-transformers, stored in ChromaDB
-2. **Query** — question is embedded, ChromaDB finds top-3 similar chunks
-   via cosine similarity, chunks are passed to Llama 3.2 as context
-3. **Answer** — LLM responds strictly from the retrieved context,
-   with source chunk references returned alongside the answergit
----
-title: DocMind
-emoji: 📄
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
 ---
 
-# DocMind — RAG-powered Document Q&A Engine
+## Deployment
 
-Ask natural language questions about any PDF.
-Built with FastAPI, ChromaDB, LangChain, and Groq (Llama 3.1).
+Deployed on **Hugging Face Spaces** using Docker.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-teal)
-![ChromaDB](https://img.shields.io/badge/ChromaDB-vector_store-purple)
-![Ollama](https://img.shields.io/badge/Ollama-local_LLM-orange)
+The app runs on port `7860` as required by HF Spaces. The Groq API key is injected via HF Repository Secrets — no keys are hardcoded or committed.
 
-## Architecture
+To deploy your own instance:
 
-
-## Tech Stack
-
-| Component       | Technology                     |
-|-----------------|-------------------------------|
-| Backend API     | FastAPI                        |
-| Vector Database | ChromaDB                       |
-| Embeddings      | sentence-transformers          |
-| LLM             | Ollama (Llama 3.2, local)      |
-| PDF Parsing     | PyMuPDF                        |
-| Chunking        | LangChain RecursiveTextSplitter|
-
-## Features
-
-- Upload any PDF via drag-and-drop UI
-- Semantic search across document chunks
-- LLM answers grounded strictly in document context
-- Source tracing — every answer shows which chunk it came from
-- Fully local — no data sent to external APIs
-- Clean chat UI served from FastAPI
-
-## Quick Start
-
-### Prerequisites
-- Python 3.10+
-- [Ollama](https://ollama.com) installed and running
-
-### Install
-
+1. Fork this repo
+2. Create a new HF Space (SDK: Docker)
+3. Push this repo to your Space:
 ```bash
-git clone https://github.com/YOUR_USERNAME/docmind.git
-cd docmind
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+git remote add space https://YOUR_HF_USERNAME:YOUR_HF_TOKEN@huggingface.co/spaces/YOUR_HF_USERNAME/docmind
+git push space main
 ```
+4. Add `GROQ_API_KEY` in your Space → Settings → Repository Secrets
 
-### Pull the LLM
+---
 
-```bash
-ollama pull llama3.2
-```
+## License
 
 ### Run
 
