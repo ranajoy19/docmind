@@ -1,4 +1,5 @@
 import os
+from urllib import response
 import requests
 from dotenv import load_dotenv
 from chromadb import PersistentClient
@@ -7,6 +8,8 @@ from sentence_transformers import SentenceTransformer
 CHROMA_PATH = "./chroma_store"
 
 load_dotenv()
+# print("KEY:", os.getenv("GROQ_API_KEY"))
+
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 
@@ -69,18 +72,38 @@ def ask_document(question: str) -> dict:
     # Step 2 — build the prompt
     prompt = build_prompt(question, chunks)
 
-    # Step 3 — send to Ollama
+    # # Step 3 — send to Ollama
+    # response = requests.post(
+    #     OLLAMA_URL,
+    #     json={
+    #         "model": OLLAMA_MODEL,
+    #         "prompt": prompt,
+    #         "stream": False,  # wait for full response
+    #     },
+    # )
+
+    # response.raise_for_status()
+    # answer = response.json()["response"].strip()
+
+    # Step 3 — send to Groq
     response = requests.post(
-        OLLAMA_URL,
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}",
+            "Content-Type": "application/json",
+        },
         json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,  # wait for full response
+            "model": "llama-3.1-8b-instant",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+            "stream": False,
         },
     )
+    print("STATUS:", response.status_code)
+    print("BODY:", response.json())
 
     response.raise_for_status()
-    answer = response.json()["response"].strip()
+    answer = response.json()["choices"][0]["message"]["content"].strip()
 
     # Step 4 — return everything
     return {
