@@ -1,7 +1,16 @@
+---
+title: DocMind
+emoji: 📄
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # DocMind — RAG-powered Document Q&A Engine
 
-Ask natural language questions about any PDF. 
-Built with FastAPI, ChromaDB, LangChain, and Ollama.
+Ask natural language questions about any PDF.
+Built with FastAPI, ChromaDB, LangChain, and Groq (Llama 3.1).
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-teal)
